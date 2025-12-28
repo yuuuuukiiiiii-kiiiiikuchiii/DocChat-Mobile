@@ -5,7 +5,7 @@ import 'package:rag_faq_document/config/router/route_names.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
 import 'package:rag_faq_document/models/message/message.dart';
 import 'package:rag_faq_document/pages/chat/chat_screen_provider.dart';
-import 'package:rag_faq_document/pages/widgets/message_card.dart';
+import 'package:rag_faq_document/pages/common_widgets.dart';
 import 'package:rag_faq_document/utils/error_dialog.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {

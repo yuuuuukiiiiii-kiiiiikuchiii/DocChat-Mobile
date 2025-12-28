@@ -30,9 +30,9 @@ class MyApp extends ConsumerWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'rag_faq_doc',
-      theme: ThemeData.dark(
-        useMaterial3: true,
-      ).copyWith(scaffoldBackgroundColor: Color.fromRGBO(19, 28, 33, 1)),
+      theme: ThemeData.light(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: Colors.white,
+      ),
       routerConfig: router,
     );
   }

@@ -42,7 +42,7 @@ class MyMessageCard extends StatelessWidget {
                   children: [
                     Text(
                       date,
-                      style:const TextStyle(
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Colors.white60,
                       ),

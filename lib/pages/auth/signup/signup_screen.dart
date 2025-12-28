@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
+import 'package:rag_faq_document/pages/auth/auth_form_fields.dart';
 import 'package:rag_faq_document/pages/auth/signup/signup_provider.dart';
-import 'package:rag_faq_document/pages/widgets/form_fields.dart';
 import 'package:rag_faq_document/utils/error_dialog.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {

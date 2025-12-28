@@ -1,8 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
+import 'package:rag_faq_document/core/app_state.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
 import 'package:rag_faq_document/pages/profile/profile_screen_provider.dart';
 import 'package:rag_faq_document/utils/error_dialog.dart';
@@ -228,6 +230,58 @@ class LogoutButton extends StatelessWidget {
   final WidgetRef ref;
   final bool mounted;
 
+  /// プラットフォームに応じてダイアログ表示
+Future<bool?> _confirmLogout(BuildContext context) async {
+  final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
+
+  if (isCupertino) {
+    // iOS風アニメーション＆UI
+    return showCupertinoDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return CupertinoAlertDialog(
+          title: const Text('ログアウト'),
+          content: const Text('本当にログアウトしますか？'),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            CupertinoDialogAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('ログアウト'),
+            ),
+          ],
+        );
+      },
+    );
+  } else {
+    // Material
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('ログアウト'),
+          content: const Text('本当にログアウトしますか？'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('ログアウト'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -246,31 +300,11 @@ class LogoutButton extends StatelessWidget {
         onPressed: () async {
           // ログアウト処理
           final goRouter = GoRouter.of(context);
-          final removeOrNot = await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) {
-              return AlertDialog(
-                title: const Text("ログアウト"),
-                content: const Text("本当にログアウトしますか?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text("No"),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop(true);
-                    },
-                    child: const Text("Yes"),
-                  ),
-                ],
-              );
-            },
-          );
+          final removeOrNot = await _confirmLogout(context);
           if (removeOrNot == true) {
             await ref.read(profileScreenProvider.notifier).logout();
             if (mounted) {
+              ref.read(authStatusProvider.notifier).state = AuthStatus.unauthenticated;
               goRouter.goNamed(RouteNames.signin);
             }
           }

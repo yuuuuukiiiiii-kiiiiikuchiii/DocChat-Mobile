@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:rag_faq_document/config/router/router_provider.dart';
+import 'package:rag_faq_document/core/app_bootstrap.dart';
 
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +18,7 @@ void main() async {
   };
 
   runApp(ProviderScope(child: const MyApp()));
-  FlutterNativeSplash.remove();
+  //FlutterNativeSplash.remove();
 }
 
 class MyApp extends ConsumerWidget {
@@ -25,8 +26,16 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(appStartProvider, (_, next) {
+      next.whenData((_) {
+        // ルーティングのredirectが確定した“次フレーム”で外すとチラつかない
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          FlutterNativeSplash.remove();
+        });
+      });
+    });
     final router = ref.watch(routerProvider);
-    //final currentTheme = ref.watch(themeProvider);
+
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'rag_faq_doc',

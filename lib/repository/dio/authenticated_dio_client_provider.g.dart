@@ -7,7 +7,7 @@ part of 'authenticated_dio_client_provider.dart';
 // **************************************************************************
 
 String _$authenticatedDioClientHash() =>
-    r'd9d35c0572096567e18e02ec75a57ee8c2a0ad15';
+    r'452397c7e6cde599e147ee0c39b7592c5dd50588';
 
 /// See also [authenticatedDioClient].
 @ProviderFor(authenticatedDioClient)

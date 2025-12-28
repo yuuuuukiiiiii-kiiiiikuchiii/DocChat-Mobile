@@ -57,14 +57,18 @@ class _SignupPageState extends ConsumerState<SignupScreen> {
         data: (_) {
           // 成功時にフォームをクリア
           _nameController.clear();
-          _emailController.clear();
+
           _passwordController.clear();
           setState(() {
             _agreeToTerms = false;
           });
 
           // 必要ならログイン画面に遷移
-          GoRouter.of(context).goNamed(RouteNames.signin);
+          GoRouter.of(context).goNamed(
+            RouteNames.verifyEmail,
+            extra: {"email": _emailController.text.trim()},
+          );
+          _emailController.clear();
         },
         error:
             (error, stackTrace) => errorDialog(
@@ -172,7 +176,12 @@ class _SignupPageState extends ConsumerState<SignupScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
 
-                              disabledBackgroundColor: Color.fromRGBO(12, 164, 167, 1).withValues(alpha: 0.5),
+                              disabledBackgroundColor: Color.fromRGBO(
+                                12,
+                                164,
+                                167,
+                                1,
+                              ).withValues(alpha: 0.5),
                             ),
                             child: Text(
                               style: TextStyle(fontSize: 16),

@@ -6,7 +6,7 @@ part of 'upload_repository_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$uploadRepositoryHash() => r'41ce8785be910852dbe88d6bda03c4b972b5d3ed';
+String _$uploadRepositoryHash() => r'd915e45652d5de915aa6989ffe86cfa52913753b';
 
 /// See also [uploadRepository].
 @ProviderFor(uploadRepository)

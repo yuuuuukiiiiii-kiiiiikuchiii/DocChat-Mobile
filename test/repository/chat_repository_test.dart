@@ -1,166 +1,196 @@
-import 'package:dio/dio.dart';
+// test/repository/chat_repository_test.dart
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
 import 'package:mockito/mockito.dart';
 import 'package:rag_faq_document/exceptions/http_exception.dart';
-import 'package:rag_faq_document/repository/chat/chat_repository.dart';
 
 import '../mocks/mocks.mocks.dart';
 
+import 'package:rag_faq_document/repository/dio/authenticated_dio_client.dart';
+import 'package:rag_faq_document/repository/chat/chat_repository.dart';
+import 'package:rag_faq_document/models/chat/chat.dart';
+
 
 void main() {
-  late MockDio mockDio;
-  late MockAuthenticatedDioClient mockClient;
-  late ChatRepository repository;
+  late MockLocalStorage storage;
+  late AuthenticatedDioClient client;
+  late ChatRepository repo;
 
   setUp(() {
-    mockDio = MockDio();
-    mockClient = MockAuthenticatedDioClient();
+    storage = MockLocalStorage();
 
-    // モックDioを返すようにスタブ
-    when(mockClient.dio).thenReturn(mockDio);
+    // デフォルト：Bearer付けない／refresh走らせない
+    // （NiceMockなので未スタブでも null だが、明示で読みやすく）
+    when(storage.access).thenReturn(null);
+    when(storage.loadRefresh()).thenAnswer((_) async => null);
 
-    repository = ChatRepository(client: mockClient);
+    client = AuthenticatedDioClient(
+      storage: storage,
+      baseUrl: 'https://api.example.com',
+      onUnauthorized: () {},
+      deviceInfoGetter: () async => 'dev',
+    );
+
+    // 非200でも Dio が例外を投げず Response を返す → Repository側の分岐をテスト可
+    client.dio.options.validateStatus = (_) => true;
+
+    repo = ChatRepository(client: client);
+  });
+
+  group('listChats', () {
+    test('200 → List<Chat> を返す & クエリが渡る', () async {
+      final adapter = _FixedAdapter(
+        statusCode: 200,
+        data: [
+          {'id': 1, 'title': 'A'},
+          {'id': 2, 'title': 'B'},
+        ],
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      final res = await repo.listChats(pageId: 3, pageSize: 20);
+
+      expect(res, isA<List<Chat>>());
+      expect(res.length, 2);
+      expect(res[0].id, 1);
+      expect(res[0].title, 'A');
+
+      // リクエスト検証（任意）
+      expect(adapter.lastPath, '/chats');
+      expect(adapter.lastMethod, 'GET');
+      expect(adapter.lastQuery?['page_id'], '3');
+      expect(adapter.lastQuery?['page_size'], '20');
+    });
+
+    test('非200 → HttpErrorException', () async {
+      final adapter = _FixedAdapter(
+        statusCode: 404,
+        data: {'error': 'not found'},
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      expect(
+        () => repo.listChats(pageId: 1, pageSize: 10),
+        throwsA(
+          isA<HttpErrorException>()
+              .having((e) => e.statusCode, 'status', 404)
+              .having((e) => e.message, 'message', 'not found'),
+        ),
+      );
+    });
+  });
+
+  group('getChat', () {
+    test('200 → Chat を返す', () async {
+      final adapter = _FixedAdapter(
+        statusCode: 200,
+        data: {'id': 42, 'title': 'Hello'},
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      final chat = await repo.getChat(id: 42);
+
+      expect(chat.id, 42);
+      expect(chat.title, 'Hello');
+
+      expect(adapter.lastPath, '/chats/42');
+      expect(adapter.lastMethod, 'GET');
+    });
+
+    test('非200 → HttpErrorException', () async {
+      final adapter = _FixedAdapter(
+        statusCode: 500,
+        data: {'error': 'server'},
+      );
+      client.dio.httpClientAdapter = adapter;
+
+      expect(
+        () => repo.getChat(id: 9),
+        throwsA(
+          isA<HttpErrorException>()
+              .having((e) => e.statusCode, 'status', 500)
+              .having((e) => e.message, 'message', 'server'),
+        ),
+      );
+    });
   });
 
   group('createChat', () {
-  test('returns Chat on success', () async {
-    when(mockDio.post(
-      '/chats/session',
-      data: {
-        'document_id': 100,
-        'title': 'New Chat',
-      },
-    )).thenAnswer(
-      (_) async => Response(
-        requestOptions: RequestOptions(path: '/chats/session'),
+    test('200 → Chat を返す & Body が送られる', () async {
+      final adapter = _FixedAdapter(
         statusCode: 200,
-        data: {
-          'id': 3,
-          'user_id': 42,
-          'document_id': 100,
-          'title': 'New Chat',
-          'created_at': '2024-01-03T00:00:00Z',
-          'updated_at': '2024-01-03T00:00:00Z',
-        },
-      ),
-    );
-
-    final result = await repository.createChat(documentId: 100, title: 'New Chat');
-    expect(result.id, 3);
-    expect(result.title, 'New Chat');
-  });
-
-  test('throws HttpErrorException on failure', () async {
-    when(mockDio.post(
-      '/chats/session',
-      data: anyNamed('data'),
-    )).thenAnswer(
-      (_) async => Response(
-        requestOptions: RequestOptions(path: '/chats/session'),
-        statusCode: 500,
-        data: {'error': 'Server error'},
-      ),
-    );
-
-    expect(
-      () => repository.createChat(documentId: 100, title: 'New Chat'),
-      throwsA(isA<HttpErrorException>()),
-    );
-  });
-});
-
-
-  group('listChats', () {
-  test('returns list of Chat on success', () async {
-    when(mockDio.get(
-      '/chats',
-      queryParameters: anyNamed('queryParameters'),
-    )).thenAnswer(
-      (_) async => Response(
-        requestOptions: RequestOptions(path: '/chats'),
-        statusCode: 200,
-        data: [
-          {
-            'id': 1,
-            'user_id': 42,
-            'document_id': 100,
-            'title': 'Chat 1',
-            'created_at': '2024-01-01T00:00:00Z',
-            'updated_at': '2024-01-01T00:00:00Z',
-          },
-          {
-            'id': 2,
-            'user_id': 42,
-            'document_id': 101,
-            'title': 'Chat 2',
-            'created_at': '2024-01-02T00:00:00Z',
-            'updated_at': '2024-01-02T00:00:00Z',
-          },
-        ],
-      ),
-    );
-
-    final result = await repository.listChats(pageId: 1, pageSize: 10);
-    expect(result.length, 2);
-    expect(result[0].title, 'Chat 1');
-    expect(result[1].title, 'Chat 2');
-  });
-
-  test('throws HttpErrorException on failure', () async {
-    when(mockDio.get(
-      '/chats',
-      queryParameters: anyNamed('queryParameters'),
-    )).thenAnswer(
-      (_) async => Response(
-        requestOptions: RequestOptions(path: '/chats'),
-        statusCode: 400,
-        data: {'error': 'Bad request'},
-      ),
-    );
-
-    expect(
-      () => repository.listChats(pageId: 1, pageSize: 10),
-      throwsA(isA<HttpErrorException>()),
-    );
-  });
-});
-
-
-  group('getChat', () {
-    test('returns Chat on success', () async {
-      when(mockDio.get('/chats/1')).thenAnswer(
-        (_) async => Response(
-          requestOptions: RequestOptions(path: '/chats/1'),
-          statusCode: 200,
-          data: {
-            'id': 1,
-            'user_id': 42,
-            'document_id': 100,
-            'title': 'Single Chat',
-            'created_at': '2024-01-01T00:00:00Z',
-            'updated_at': '2024-01-02T00:00:00Z',
-          },
-        ),
+        data: {'id': 7, 'title': 'New Chat'},
       );
+      client.dio.httpClientAdapter = adapter;
 
-      final result = await repository.getChat(id: 1);
-      expect(result.id, 1);
-      expect(result.title, 'Single Chat');
+      final chat = await repo.createChat(documentId: 99, title: 'New Chat');
+
+      expect(chat.id, 7);
+      expect(chat.title, 'New Chat');
+
+      expect(adapter.lastPath, '/chats/session');
+      expect(adapter.lastMethod, 'POST');
+      expect(adapter.lastData, isA<Map>());
+      expect(adapter.lastData?['document_id'], 99);
+      expect(adapter.lastData?['title'], 'New Chat');
     });
 
-    test('throws HttpErrorException on failure', () async {
-      when(mockDio.get('/chats/1')).thenAnswer(
-        (_) async => Response(
-          requestOptions: RequestOptions(path: '/chats/1'),
-          statusCode: 404,
-          data: {'error': 'Not found'},
-        ),
+    test('非200 → HttpErrorException', () async {
+      final adapter = _FixedAdapter(
+        statusCode: 400,
+        data: {'error': 'bad request'},
       );
+      client.dio.httpClientAdapter = adapter;
 
       expect(
-        () => repository.getChat(id: 1),
-        throwsA(isA<HttpErrorException>()),
+        () => repo.createChat(documentId: 1, title: 'x'),
+        throwsA(
+          isA<HttpErrorException>()
+              .having((e) => e.statusCode, 'status', 400)
+              .having((e) => e.message, 'message', 'bad request'),
+        ),
       );
     });
   });
+}
+
+/// --------------------------------------------------
+/// テスト専用：固定応答アダプタ
+/// - 任意の statusCode / data を返す
+/// - 直近の path / method / query / data を記録
+/// --------------------------------------------------
+class _FixedAdapter implements HttpClientAdapter {
+  final int statusCode;
+  final dynamic data;
+
+  String? lastPath;
+  String? lastMethod;
+  Map<String, dynamic>? lastQuery;
+  dynamic lastData;
+
+  _FixedAdapter({required this.statusCode, required this.data});
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<List<int>>? requestStream,
+    Future? cancelFuture,
+  ) async {
+    lastPath = options.path;
+    lastMethod = options.method;
+    lastQuery = Map<String, dynamic>.from(options.queryParameters);
+    lastData = options.data;
+
+    final encoded = data is String ? data : jsonEncode(data);
+
+    return ResponseBody.fromString(
+      encoded,
+      statusCode,
+      headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+    );
+  }
 }

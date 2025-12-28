@@ -6,12 +6,12 @@ part of 'profile_screen_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$profileScreenHash() => r'ba3a53f456fb59a2203a50aefc4d971bae565232';
+String _$profileScreenHash() => r'620e362d3fdc6621e045f93f13e11603de10cecb';
 
 /// See also [ProfileScreen].
 @ProviderFor(ProfileScreen)
 final profileScreenProvider =
-    AutoDisposeAsyncNotifierProvider<ProfileScreen, Profile>.internal(
+    AsyncNotifierProvider<ProfileScreen, Profile>.internal(
       ProfileScreen.new,
       name: r'profileScreenProvider',
       debugGetCreateSourceHash:
@@ -22,6 +22,6 @@ final profileScreenProvider =
       allTransitiveDependencies: null,
     );
 
-typedef _$ProfileScreen = AutoDisposeAsyncNotifier<Profile>;
+typedef _$ProfileScreen = AsyncNotifier<Profile>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

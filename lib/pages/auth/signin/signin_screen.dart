@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
+import 'package:rag_faq_document/core/app_state.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
 import 'package:rag_faq_document/pages/auth/signin/signin_provider.dart';
 import 'package:rag_faq_document/pages/widgets/form_fields.dart';
@@ -47,15 +48,46 @@ class _SigninPageState extends ConsumerState<SigninScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1) まず現在の値を1フレーム後にチェックして表示（初回遷移時）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final err = ref.read(bootErrorProvider);
+      if (err != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(err.userMessage)));
+        ref.read(bootErrorProvider.notifier).state = null; // ★消費（ワンショット）
+      }
+    });
+
+    // 2) その後の変化（再試行など）も拾いたいなら listen も追加（任意）
+    ref.listen<CustomError?>(bootErrorProvider, (prev, next) {
+      if (next != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.userMessage)));
+        ref.read(bootErrorProvider.notifier).state = null; // ★消費
+      }
+    });
     ref.listen<AsyncValue<void>>(signinProvider, (prev, next) {
       next.whenOrNull(
         data: (_) {
-          // 必要ならログイン画面に遷移
+          ref.read(authStatusProvider.notifier).state =
+              AuthStatus.authenticated;
+          if (!context.mounted) return;
           GoRouter.of(context).goNamed(RouteNames.home);
         },
-        error:
-            (error, stackTrace) =>
-                errorDialog(context, "ログイン失敗しました", error as CustomError, null),
+        error: (error, stackTrace) {
+          final custom =
+              error is CustomError
+                  ? error
+                  : CustomError.unknown(message: error.toString());
+
+          if (custom is ServerError && custom.statusCode == 429) {
+            errorDialog(context, "ログインが一時的にロックされています", custom, null);
+          } else {
+            errorDialog(context, "ログイン失敗しました", custom, null);
+          }
+        },
       );
     });
 
@@ -120,9 +152,9 @@ class _SigninPageState extends ConsumerState<SigninScreen> {
                               loading: () => null,
                               orElse:
                                   () =>
-                                      () => context.pushNamed(
-                                        RouteNames.passwordReset,
-                                      ),
+                                      () => GoRouter.of(
+                                        context,
+                                      ).goNamed(RouteNames.passwordReset),
                             ),
                             child: Text(
                               'パスワードをお忘れですか？',

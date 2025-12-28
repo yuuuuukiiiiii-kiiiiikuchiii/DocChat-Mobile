@@ -695,7 +695,6 @@ void _showDeleteDialog(
           ElevatedButton(
             onPressed: () {
               _handleFileDelete(context, doc, ref);
-
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -727,6 +726,7 @@ void _handleFileRename(
   ref
       .read(documentsGridviewProvider.notifier)
       .editTitleDocument(newTitle: newTitle, documentId: doc.id);
+  ref.invalidate(chatListProvider);
   // 成功メッセージ表示
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
@@ -744,13 +744,13 @@ void _handleFileDelete(
   BuildContext context,
   DocumentsResponse doc,
   WidgetRef ref,
-) async{
+) async {
   Navigator.of(context).pop(); // ダイアログを閉じる
   final snackbar = ScaffoldMessenger.of(context);
 
   // TODO: 実際のファイル削除APIを呼び出す
- await ref.read(documentsGridviewProvider.notifier).deleteDocument(doc.id);
- ref.invalidate(chatListProvider);
+  await ref.read(documentsGridviewProvider.notifier).deleteDocument(doc.id);
+  ref.invalidate(chatListProvider);
 
   // 成功メッセージ表示
   snackbar.showSnackBar(

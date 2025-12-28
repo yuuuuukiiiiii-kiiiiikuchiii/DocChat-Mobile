@@ -36,21 +36,71 @@ class AuthRepository {
 
   // ログイン
   Future<UserResponse> login({
-    required String email,
-    required String password,
-  }) async {
+  required String email,
+  required String password,
+}) async {
+  try {
+    final deviceInfo = await getDeviceInfoFn();
+    final response = await dio.post(
+      '/users/login',
+      data: {'email': email, 'password': password},
+      options: Options(headers: {'User-Agent': deviceInfo}),
+    );
+
+    if (response.statusCode == 200) {
+      return UserResponse.fromJson(response.data);
+    }
+
+    // 429: ロック中
+    if (response.statusCode == 429) {
+      final header = response.headers.map['retry-after']?.first;
+      int seconds = int.tryParse(header ?? '') ?? 0;
+
+      if (seconds <= 0) {
+        final bodySec =
+            (response.data is Map)
+                ? int.tryParse('${response.data['retry_after_s'] ?? ''}') ?? 0
+                : 0;
+        seconds = bodySec > 0 ? bodySec : 60; // 最低60秒にフォールバック
+      }
+
+      final msg = (response.data is Map && response.data['error'] != null)
+          ? response.data['error'].toString()
+          : '一時的にロックされています';
+
+      // 429 も HttpErrorException に統一
+      throw HttpErrorException(
+        message: msg,
+        statusCode: 429,
+        retryAfterSeconds: seconds,
+      );
+    }
+
+    // その他エラー
+    throw HttpErrorException(
+      message: (response.data is Map && response.data["error"] != null)
+          ? response.data["error"].toString()
+          : '不明なエラーが発生しました',
+      statusCode: response.statusCode ?? -1,
+    );
+  } catch (e) {
+    rethrow;
+  }
+}
+
+
+  //パスワードリセット
+  Future<void> passwordReset(String email) async {
     try {
       final deviceInfo = await getDeviceInfoFn();
       final response = await dio.post(
-        '/users/login',
-        data: {'email': email, 'password': password},
+        '/password_reset',
+        data: {'email': email},
         options: Options(headers: {'User-Agent': deviceInfo}),
       );
-      if (response.statusCode == 200) {
-        return UserResponse.fromJson(response.data);
-      } else {
+      if (response.statusCode != 200) {
         throw HttpErrorException(
-          message: (response.data["error"]).toString(),
+          message: response.data['error'] ?? 'メール送信に失敗しました',
           statusCode: response.statusCode!,
         );
       }
@@ -58,26 +108,6 @@ class AuthRepository {
       rethrow;
     }
   }
-
-  //パスワードリセット
-Future<void> passwordReset(String email)async{
-  try{
-    final deviceInfo = await getDeviceInfoFn();
-      final response = await dio.post(
-        '/password_reset',
-        data: {'email': email,},
-        options: Options(headers: {'User-Agent': deviceInfo}),
-      );
-   if (response.statusCode != 200) {
-        throw HttpErrorException(
-          message: response.data['error'] ?? 'メール送信に失敗しました',
-          statusCode: response.statusCode!,
-        );
-      }
-  }catch(e){
-    rethrow;
-  }
-}
 
   // アクセストークン更新
   Future<UserResponse> refreshAccessToken(String refreshToken) async {

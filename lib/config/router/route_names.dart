@@ -7,6 +7,7 @@ class RouteNames {
   static const comment = 'comment';
   static const signin = 'signin';
   static const signup = 'signup';
+  static const verifyEmail = 'verifyEmail';
   static const passwordReset = 'passwordReset';
   static const passwordResetSuccess = 'passwordResetSuccess';
   static const splash = 'splash';

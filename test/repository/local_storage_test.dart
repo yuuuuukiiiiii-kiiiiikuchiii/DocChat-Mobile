@@ -1,87 +1,74 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
 import 'package:rag_faq_document/repository/local_storage/local_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-
+import '../mocks/mocks.mocks.dart';
 
 void main() {
-  late LocalStorage localStorage;
+  group('LocalStorage', () {
+    test('初期状態: access は null', () {
+      final mockSecure = MockFlutterSecureStorage();
+      final storage = LocalStorage(secure: mockSecure);
 
-  setUp(() {
-    // テストごとに初期化
-    SharedPreferences.setMockInitialValues({});
-    localStorage = LocalStorage();
-  });
+      expect(storage.access, isNull);
+      verifyZeroInteractions(mockSecure);
+    });
 
-  test('saveTokens and getToken should store and retrieve token values correctly', () async {
-    await localStorage.saveTokens(
-      accessToken: 'access123',
-      accessTokenExpiresAt: '2025-01-01T00:00:00Z',
-      refreshToken: 'refresh456',
-      refreshTokenExpiresAt: '2026-01-01T00:00:00Z',
-    );
+    test('setAccess でメモリ上の access が更新される', () async {
+      final mockSecure = MockFlutterSecureStorage();
+      final storage = LocalStorage(secure: mockSecure);
 
-    final token = await localStorage.getToken();
+      await storage.setAccess('ACCESS_123');
+      expect(storage.access, 'ACCESS_123');
+      verifyZeroInteractions(mockSecure); // セキュアストレージは触らない
+    });
 
-    expect(token.accessToken, 'access123');
-    expect(token.refreshToken, 'refresh456');
-    expect(token.accessTokenExpiresAt?.toIso8601String(), '2025-01-01T00:00:00.000Z');
-    expect(token.refreshTokenExpiresAt?.toIso8601String(), '2026-01-01T00:00:00.000Z');
-  });
+    test('saveRefresh → write(key: refresh_token, value: ...)', () async {
+      final mockSecure = MockFlutterSecureStorage();
+      final storage = LocalStorage(secure: mockSecure);
 
-  test('clearTokens should remove all token values', () async {
-    await localStorage.saveTokens(
-      accessToken: 'access',
-      accessTokenExpiresAt: '2025-01-01T00:00:00Z',
-      refreshToken: 'refresh',
-      refreshTokenExpiresAt: '2026-01-01T00:00:00Z',
-    );
+      when(
+        mockSecure.write(key: anyNamed('key'), value: anyNamed('value')),
+      ).thenAnswer((_) async {});
 
-    await localStorage.clearTokens();
+      await storage.saveRefresh('REFRESH_ABC');
 
-    final token = await localStorage.getToken();
-    expect(token.accessToken, isNull);
-    expect(token.refreshToken, isNull);
-  });
+      verify(
+        mockSecure.write(key: 'refresh_token', value: 'REFRESH_ABC'),
+      ).called(1);
+      verifyNoMoreInteractions(mockSecure);
+    });
 
-  test('getAccessToken and getRefreshToken should return correct values', () async {
-    await localStorage.saveTokens(
-      accessToken: 'token123',
-      accessTokenExpiresAt: '2025-01-01T00:00:00Z',
-      refreshToken: 'token456',
-      refreshTokenExpiresAt: '2026-01-01T00:00:00Z',
-    );
+    test('loadRefresh → read(key: refresh_token) の結果を返す', () async {
+      final mockSecure = MockFlutterSecureStorage();
+      final storage = LocalStorage(secure: mockSecure);
 
-    final access = await localStorage.getAccessToken();
-    final refresh = await localStorage.getRefreshToken();
+      when(
+        mockSecure.read(key: anyNamed('key')),
+      ).thenAnswer((_) async => 'REFRESH_ABC');
 
-    expect(access, 'token123');
-    expect(refresh, 'token456');
-  });
+      final v = await storage.loadRefresh();
+      expect(v, 'REFRESH_ABC');
 
-  test('setFirstLaunchComplete should store the boolean flag', () async {
-    await localStorage.setFirstLaunchComplete();
+      verify(mockSecure.read(key: 'refresh_token')).called(1);
+      verifyNoMoreInteractions(mockSecure);
+    });
 
-    final token = await localStorage.getToken();
-    expect(token.firstLaunchCompleted, isTrue);
-  });
+    test('clear は access を null にし、refresh_token を削除する', () async {
+      final mockSecure = MockFlutterSecureStorage();
+      final storage = LocalStorage(secure: mockSecure);
 
-  test('saveUser stores all user fields correctly', () async {
-    await localStorage.saveUser(
-      id: 1,
-      username: 'kikuchi',
-      email: 'kikuchi@example.com',
-      createdAt: '2023-01-01',
-      updatedAt: '2023-01-02',
-      lastLoginAt: '2023-01-03',
-    );
+      // 先に access をセット
+      await storage.setAccess('ACCESS_123');
+      expect(storage.access, 'ACCESS_123');
 
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getInt('user_id'), 1);
-    expect(prefs.getString('user_name'), 'kikuchi');
-    expect(prefs.getString('email'), 'kikuchi@example.com');
-    expect(prefs.getString('created_at'), '2023-01-01');
-    expect(prefs.getString('updated_at'), '2023-01-02');
-    expect(prefs.getString('lastLogin_at'), '2023-01-03');
+      when(mockSecure.delete(key: anyNamed('key'))).thenAnswer((_) async {});
+
+      await storage.clear();
+
+      expect(storage.access, isNull);
+      verify(mockSecure.delete(key: 'refresh_token')).called(1);
+      verifyNoMoreInteractions(mockSecure);
+    });
   });
 }

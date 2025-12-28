@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:rag_faq_document/exceptions/http_exception.dart';
 import 'package:rag_faq_document/models/profile/profile.dart';
 import 'package:rag_faq_document/repository/dio/authenticated_dio_client.dart';
@@ -9,7 +10,10 @@ class ProfileRepository {
 
   Future<Profile> getProfile() async {
     try {
-      final response = await client.dio.get("/profile");
+      final response = await client.dio.get(
+        "/profile",
+        options: Options(contentType: "application/json"),
+      );
 
       if (response.statusCode == 200) {
         print(response.data["created_at"]);

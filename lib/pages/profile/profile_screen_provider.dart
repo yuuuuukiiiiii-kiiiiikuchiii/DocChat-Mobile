@@ -5,7 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'profile_screen_provider.g.dart';
 
-@riverpod
+@Riverpod(keepAlive: true)
 class ProfileScreen extends _$ProfileScreen {
   @override
   FutureOr<Profile> build() {

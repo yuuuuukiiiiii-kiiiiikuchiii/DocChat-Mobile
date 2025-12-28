@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
 import 'package:rag_faq_document/models/message/message.dart';
@@ -30,25 +31,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isTyping = false;
 
   void _scrollToBottom() {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (_scrollController.hasClients && _scrollController.position.hasContentDimensions) {
-      final distance = (_scrollController.position.maxScrollExtent - _scrollController.position.pixels).abs();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients &&
+          _scrollController.position.hasContentDimensions) {
+        final distance =
+            (_scrollController.position.maxScrollExtent -
+                    _scrollController.position.pixels)
+                .abs();
 
-      if (distance < 200) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-        );
+        if (distance < 200) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+          );
+        } else {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
       } else {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
       }
-    } else {
-      Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
-    }
-  });
-}
-
+    });
+  }
 
   void _handleSubmitted(String message) {
     _textController.clear();
@@ -65,6 +69,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     _scrollToBottom();
   }
+
+  // 近いときだけ自動スクロール（reverse:true の場合は minScrollExtent が“下端”）
+void _maybeAutoScrollToBottom() {
+  if (!_scrollController.hasClients) return;
+  final atBottom = _scrollController.position.pixels
+      <= _scrollController.position.minScrollExtent + 80; // 80px 以内なら最下部扱い
+  if (atBottom) {
+    _scrollController.animateTo(
+      _scrollController.position.minScrollExtent,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+}
 
   @override
   void initState() {
@@ -93,14 +111,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     });
     final messageListState = ref.watch(chatScreenProvider(widget.chatId));
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.documentTitle),
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
-          onPressed: () => GoRouter.of(context).pushNamed(RouteNames.home),
+          onPressed: () => GoRouter.of(context).goNamed(RouteNames.home),
         ),
-        actions: [IconButton(icon: Icon(Icons.more_vert), onPressed: () {})],
       ),
       body: SafeArea(
         child: Column(
@@ -111,12 +129,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   final List<Message> displayedMessages = [...data];
 
                   if (_isTyping) {
-                    displayedMessages.add(
-                      Message.typing()
-                    );
+                    displayedMessages.add(Message.typing());
                   }
 
                   return ListView.builder(
+                    
+                    physics: AlwaysScrollableScrollPhysics(),
                     controller: _scrollController,
                     padding: const EdgeInsets.all(8.0),
                     itemCount: displayedMessages.length,
@@ -132,12 +150,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       if (msg.isUser) {
                         return MyMessageCard(
                           message: msg.message,
-                          date: msg.createdAt.timeZoneName,
+                          date: DateFormat('yyyy/MM/dd HH:mm').format(msg.createdAt.toLocal()),
                         );
                       } else {
                         return SenderMessageCard(
                           message: msg.message,
-                          date: msg.createdAt.timeZoneName,
+                          date: DateFormat('yyyy/MM/dd HH:mm').format(msg.createdAt.toLocal()),
                         );
                       }
                     },
@@ -195,42 +213,62 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return IconTheme(
       data: IconThemeData(color: Theme.of(context).primaryColor),
       child: Container(
-        margin: EdgeInsets.symmetric(horizontal: 8.0),
-        padding: EdgeInsets.symmetric(vertical: 8.0),
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Row(
           children: [
             Flexible(
               child: TextField(
                 style: const TextStyle(color: Colors.black),
                 controller: _textController,
-                onSubmitted: _handleSubmitted,
+                onSubmitted: (v) {
+                  final t = v.trim();
+                  if (t.isNotEmpty) _handleSubmitted(t);
+                },
                 decoration: InputDecoration(
                   hintText: 'このドキュメントについて質問する...',
-                  hintStyle: TextStyle(color: Colors.grey),
+                  hintStyle: const TextStyle(color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20.0),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16.0,
                     vertical: 10.0,
                   ),
                 ),
               ),
             ),
-            SizedBox(width: 8.0),
-            Container(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(255, 42, 204, 166),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: Icon(Icons.send),
-                color: Colors.white,
-                onPressed: () => _handleSubmitted(_textController.text),
-              ),
+            const SizedBox(width: 8.0),
+
+            // ← ここだけ監視して差し替える
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _textController,
+              builder: (context, value, _) {
+                final canSend = value.text.trim().isNotEmpty;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: const Color.fromARGB(
+                      255,
+                      42,
+                      204,
+                      166,
+                    ).withValues(alpha:canSend ? 1.0 : 0.4), // 見た目も薄く
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.send),
+                    color: Colors.white,
+                    onPressed:
+                        canSend
+                            ? () =>
+                                _handleSubmitted(_textController.text.trim())
+                            : null, // ← nullで無効化
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -238,49 +276,3 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 }
-
-// class ChatMessage extends StatelessWidget {
-//   final String text;
-//   final bool isUser;
-
-//   const ChatMessage({super.key, required this.text, required this.isUser});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//       margin: EdgeInsets.symmetric(vertical: 6.0),
-//       child: Row(
-//         mainAxisAlignment:
-//             isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           if (!isUser) SizedBox(width: 8),
-//           Flexible(
-//             child: Container(
-//               padding: EdgeInsets.all(12.0),
-//               decoration: BoxDecoration(
-//                 color:
-//                     isUser
-//                         ? Colors.white
-//                         : Color(0xFF5C7CFA).withValues(alpha: 0.15),
-//                 borderRadius: BorderRadius.circular(16.0),
-//                 boxShadow: [
-//                   BoxShadow(
-//                     color: Colors.black.withValues(alpha: 0.05),
-//                     blurRadius: 2,
-//                     offset: Offset(0, 1),
-//                   ),
-//                 ],
-//               ),
-//               child: Text(
-//                 text,
-//                 style: TextStyle(color: isUser ? Colors.black : Colors.black87),
-//               ),
-//             ),
-//           ),
-//           if (isUser) SizedBox(width: 8),
-//         ],
-//       ),
-//     );
-//   }
-// }

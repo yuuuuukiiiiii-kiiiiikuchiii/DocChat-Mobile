@@ -27,38 +27,38 @@ class ChatService {
     }
   }
 
-  Future<Chat> getChat({required int id}) async {
-    try {
-      final chat = await repo.getChat(id: id);
-      return chat;
-    } on HttpErrorException catch (e) {
-      final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
-      throw CustomError.server(
-        statusCode: e.statusCode,
-        message: e.message,
-        userMessage: userMessage,
-      );
-    } catch (e) {
-      throw handleException(e);
-    }
-  }
+  // Future<Chat> getChat({required int id}) async {
+  //   try {
+  //     final chat = await repo.getChat(id: id);
+  //     return chat;
+  //   } on HttpErrorException catch (e) {
+  //     final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
+  //     throw CustomError.server(
+  //       statusCode: e.statusCode,
+  //       message: e.message,
+  //       userMessage: userMessage,
+  //     );
+  //   } catch (e) {
+  //     throw handleException(e);
+  //   }
+  // }
 
-  Future<Chat> createChat({
-    required String title,
-    required int documentId,
-  }) async {
-    try {
-      final chat = repo.createChat(documentId: documentId, title: title);
-      return chat;
-    } on HttpErrorException catch (e) {
-      final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
-      throw CustomError.server(
-        statusCode: e.statusCode,
-        message: e.message,
-        userMessage: userMessage,
-      );
-    } catch (e) {
-      throw handleException(e);
-    }
-  }
+  // Future<Chat> createChat({
+  //   required String title,
+  //   required int documentId,
+  // }) async {
+  //   try {
+  //     final chat = repo.createChat(documentId: documentId, title: title);
+  //     return chat;
+  //   } on HttpErrorException catch (e) {
+  //     final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
+  //     throw CustomError.server(
+  //       statusCode: e.statusCode,
+  //       message: e.message,
+  //       userMessage: userMessage,
+  //     );
+  //   } catch (e) {
+  //     throw handleException(e);
+  //   }
+  // }
 }

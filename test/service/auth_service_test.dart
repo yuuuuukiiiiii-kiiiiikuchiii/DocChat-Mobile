@@ -49,18 +49,18 @@ void main() {
       when(
         mockRepo.refreshAccessToken('oldRefresh'),
       ).thenThrow(HttpErrorException(message: 'unauthorized', statusCode: 401));
-      when(mockStorage.clearTokens()).thenAnswer((_) async {});
+      when(mockStorage.clear()).thenAnswer((_) async {});
 
       expect(
         () => authService.refreshAccessToken('oldRefresh'),
         throwsA(isA<CustomError>()),
       );
 
-      verify(mockStorage.clearTokens()).called(1);
+      verify(mockStorage.clear()).called(1);
     });
 
     test('logout throws CustomError.server on HttpErrorException', () async {
-      when(mockStorage.getRefreshToken()).thenAnswer((_) async => 'token');
+      when(mockStorage.loadRefresh()).thenAnswer((_) async => 'token');
       when(
         mockRepo.logout(refreshToken: 'token'),
       ).thenThrow(HttpErrorException(message: 'error', statusCode: 403));
@@ -74,7 +74,7 @@ void main() {
       await authService.logout();
 
       verifyNever(mockRepo.logout(refreshToken: anyNamed('refreshToken')));
-      verifyNever(mockStorage.clearTokens());
+      verifyNever(mockStorage.clear());
     });
 
     test('login throws handled error on unknown exception', () async {
@@ -190,12 +190,12 @@ void main() {
       when(
         mockRepo.logout(refreshToken: 'refresh_token'),
       ).thenAnswer((_) async {});
-      when(mockStorage.clearTokens()).thenAnswer((_) async {});
+      when(mockStorage.clear()).thenAnswer((_) async {});
 
       await authService.logout();
 
       verify(mockRepo.logout(refreshToken: 'refresh_token')).called(1);
-      verify(mockStorage.clearTokens()).called(1);
+      verify(mockStorage.clear()).called(1);
     });
 
     test('refreshAccessToken success', () async {

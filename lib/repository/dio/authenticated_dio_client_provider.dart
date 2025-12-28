@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
 import 'package:rag_faq_document/config/router/router_provider.dart';
+import 'package:rag_faq_document/core/app_state.dart';
 import 'package:rag_faq_document/repository/dio/authenticated_dio_client.dart';
 import 'package:rag_faq_document/repository/local_storage/local_storage_provider.dart';
 import 'package:rag_faq_document/utils/utils.dart';
@@ -32,6 +33,7 @@ AuthenticatedDioClient authenticatedDioClient(Ref ref) {
                 actions: [
                   CupertinoDialogAction(
                     onPressed: () {
+                      ref.read(authStatusProvider.notifier).state = AuthStatus.unauthenticated;
                       Navigator.of(context).pop(); // ダイアログを閉じる
                       GoRouter.of(
                         context,

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:rag_faq_document/exceptions/http_exception.dart';
 import 'package:rag_faq_document/models/document/documents_response/documents_response.dart';
 import 'package:rag_faq_document/repository/dio/authenticated_dio_client.dart';
@@ -8,7 +9,7 @@ class DocRepository {
 
   Future<List<DocumentsResponse>> listDocument() async {
     try {
-      final response = await client.dio.get('/documents');
+      final response = await client.dio.get('/documents',options: Options(contentType: "application/json"),);
       if (response.statusCode == 200) {
         final data = response.data;
 
@@ -39,6 +40,7 @@ class DocRepository {
       print("start editTitleDocument");
       final response = await client.dio.put(
         "/documents/update",
+        options: Options(contentType: "application/json"),
         data: {'document_id': documentId, 'title': newTitle},
       );
       if(response.statusCode == 200){
@@ -57,7 +59,7 @@ class DocRepository {
 
   Future<void> deleteDocument(int documentId) async {
     try {
-      final response = await client.dio.delete('/documents/$documentId');
+      final response = await client.dio.delete('/documents/$documentId',options: Options(contentType: "application/json"),);
       if (response.statusCode != 200) {
         throw HttpErrorException(
           message: (response.data["error"]).toString(),

@@ -1,6 +1,7 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:rag_faq_document/core/app_state.dart';
 import 'package:rag_faq_document/exceptions/http_exception.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
-import 'package:rag_faq_document/models/token/token.dart';
 import 'package:rag_faq_document/repository/auth/auth_repository.dart';
 import 'package:rag_faq_document/repository/handle_exception.dart';
 import 'package:rag_faq_document/repository/local_storage/local_storage.dart';
@@ -9,7 +10,8 @@ import 'package:rag_faq_document/utils/utils.dart';
 class AuthService {
   final LocalStorage storage;
   final AuthRepository repo;
-  AuthService({required this.storage, required this.repo});
+  final Ref ref;
+  AuthService({required this.storage, required this.repo, required this.ref});
 
   // 新規登録
   Future<void> signup({
@@ -35,10 +37,10 @@ class AuthService {
   //ログアウト
   Future<void> logout() async {
     try {
-      final refreshToken = await storage.getRefreshToken();
+      final refreshToken = await storage.loadRefresh();
       if (refreshToken != null) {
         await repo.logout(refreshToken: refreshToken);
-        await storage.clearTokens();
+        await storage.clear();
       }
     } on HttpErrorException catch (e) {
       final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
@@ -56,27 +58,20 @@ class AuthService {
   Future<void> login({required String email, required String password}) async {
     try {
       final data = await repo.login(email: email, password: password);
-      await storage.saveTokens(
-        accessToken: data.accessToken,
-        accessTokenExpiresAt: data.accessTokenExpiresAt,
-        refreshToken: data.refreshToken,
-        refreshTokenExpiresAt: data.refreshTokenExpiresAt,
-      );
-      await storage.saveUser(
-        id: data.user!.id,
-        username: data.user!.username,
-        email: data.user!.email,
-        createdAt: data.user!.createdAt,
-        updatedAt: data.user!.updatedAt,
-        lastLoginAt: data.user!.lastLoginAt,
-      );
+      await storage.setAccess(data.accessToken);
+      await storage.saveRefresh(data.refreshToken);
+      
     } on HttpErrorException catch (e) {
-      final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
-      throw CustomError.server(
-        statusCode: e.statusCode,
-        message: e.message,
-        userMessage: userMessage,
-      );
+      final userMessage = mapHttpErrorToUserMessage(
+      e.message,
+      e.statusCode,
+      retryAfterSeconds: e.retryAfterSeconds,
+    );
+    throw CustomError.server(
+      statusCode: e.statusCode,
+      message: e.message,
+      userMessage: userMessage,
+    );
     } catch (e) {
       print("💥 Caught in AuthService: ${e.runtimeType}");
       throw handleException(e);
@@ -100,27 +95,23 @@ class AuthService {
     }
   }
 
-  // アクセストークン更新
-  Future<TokenModel> refreshAccessToken(String refreshToken) async {
+  //アクセストークン更新
+  Future<void> refreshAccessToken(String refreshToken) async {
     try {
       print("refresh start");
       final data = await repo.refreshAccessToken(refreshToken);
       print(data.accessToken);
-      await storage.saveTokens(
-        accessToken: data.accessToken,
-        accessTokenExpiresAt: data.accessTokenExpiresAt,
-        refreshToken: data.refreshToken,
-        refreshTokenExpiresAt: data.refreshTokenExpiresAt,
-      );
-      final token = await storage.getToken();
-      print(
-        "新しいアクセストークン:${token.accessToken}、新しいリフレッシュトークン:${token.refreshToken}",
-      );
-      return token;
+      await storage.setAccess(data.accessToken);
+      await storage.saveRefresh(data.refreshToken);
+      final newAccessToken = storage.access;
+      final newRefreshToken = await storage.loadRefresh();
+
+      ref.read(authStatusProvider.notifier).state = AuthStatus.authenticated;
+      print("新しいアクセストークン:$newAccessToken、新しいリフレッシュトークン:$newRefreshToken");
     } on HttpErrorException catch (e) {
       if (e.statusCode == 401) {
         print("🔴 サーバーがリフレッシュトークンを拒否（401）");
-        await storage.clearTokens();
+        await storage.clear();
         final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
         throw CustomError.server(
           statusCode: e.statusCode,

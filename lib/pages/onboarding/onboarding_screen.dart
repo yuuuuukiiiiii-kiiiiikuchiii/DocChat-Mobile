@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
-import 'package:rag_faq_document/repository/local_storage/local_storage_provider.dart';
+import 'package:rag_faq_document/core/app_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -49,7 +50,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         curve: Curves.easeIn,
       );
     } else {
-      await ref.read(localStorageProvider).setFirstLaunchComplete();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onb_done', true);
+      ref.read(onbStatusProvider.notifier).state = OnbStatus.done;
+      //await ref.read(localStorageProvider).setFirstLaunchComplete();
       goroute.goNamed(RouteNames.signin);
     }
   }

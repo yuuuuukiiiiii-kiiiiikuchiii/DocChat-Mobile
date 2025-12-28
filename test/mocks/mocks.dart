@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mockito/annotations.dart';
 import 'package:rag_faq_document/repository/auth/auth_repository.dart';
 import 'package:rag_faq_document/repository/chat/chat_repository.dart';
@@ -10,6 +11,7 @@ import 'package:rag_faq_document/services/auth/auth_service.dart';
 import 'package:rag_faq_document/utils/utils.dart';
 
 @GenerateMocks([
+  FlutterSecureStorage,
   DeviceInfoWrapper,
   Dio,
   LocalStorage,

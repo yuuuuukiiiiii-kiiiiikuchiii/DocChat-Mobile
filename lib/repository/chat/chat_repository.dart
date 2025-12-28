@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:rag_faq_document/exceptions/http_exception.dart';
 import 'package:rag_faq_document/models/chat/chat.dart';
 import 'package:rag_faq_document/repository/dio/authenticated_dio_client.dart';
@@ -13,6 +14,7 @@ class ChatRepository {
   }) async {
     try {
       final response = await client.dio.get(
+        options: Options(contentType: "application/json"),
         "/chats",
         queryParameters: {
           'page_id': pageId.toString(),
@@ -37,7 +39,7 @@ class ChatRepository {
 
   Future<Chat> getChat({required int id}) async {
     try {
-      final response = await client.dio.get('/chats/$id');
+      final response = await client.dio.get('/chats/$id',options: Options(contentType: "application/json"),);
       if (response.statusCode == 200) {
         return Chat.fromJson(response.data);
       } else {
@@ -58,6 +60,7 @@ class ChatRepository {
     try {
       final response = await client.dio.post(
         '/chats/session',
+        options: Options(contentType: "application/json"),
         data: {'document_id': documentId, 'title': title},
       );
       if (response.statusCode == 200) {

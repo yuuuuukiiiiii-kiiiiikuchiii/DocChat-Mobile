@@ -10,5 +10,5 @@ part 'auth_service_provider.g.dart';
 AuthService authService(Ref ref) {
   final storage = ref.watch(localStorageProvider);
   final repo = ref.watch(authRepositoryProvider);
-  return AuthService(storage: storage, repo: repo);
+  return AuthService(storage: storage, repo: repo, ref: ref);
 }

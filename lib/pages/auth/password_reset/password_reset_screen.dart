@@ -31,12 +31,11 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     ref.listen<AsyncValue<void>>(passwordResetProvider, (prev, next) {
       next.whenOrNull(
         data: (data) {
-          _emailController.clear();
-
           GoRouter.of(context).goNamed(
             RouteNames.passwordResetSuccess,
             extra: {"email": _emailController.text.trim()},
           );
+          _emailController.clear();
         },
         error:
             (error, stackTrace) => errorDialog(
@@ -142,7 +141,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                       // ログイン画面へのリンク
                       TextButton(
                         onPressed: () {
-                          GoRouter.of(context).pop();
+                          GoRouter.of(context).goNamed(RouteNames.signin);
                         },
                         child: Text(
                           'ログイン画面に戻る',

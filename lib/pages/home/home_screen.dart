@@ -134,13 +134,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   skipError: true,
                   data: (List<Chat> allChats) {
                     if (allChats.isEmpty) {
-                      prevTodosWidget = const Center(
-                        child: Text(
-                          "データがありません",
-                          style: TextStyle(fontSize: 20),
+                      return RefreshIndicator(
+                        onRefresh: _onRefresh,
+                        child: ListView(
+                          // 中身がなくてもスクロール可能にする
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 200), // なくてもOK。見た目の余白が欲しければ入れる
+                            Center(
+                              child: Text(
+                                "データがありません",
+                                style: TextStyle(fontSize: 20),
+                              ),
+                            ),
+                          ],
                         ),
                       );
-                      return prevTodosWidget;
                     }
 
                     prevTodosWidget = RefreshIndicator(
@@ -155,6 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         thickness: 8,
                         radius: const Radius.circular(4),
                         child: ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           controller: _scrollController,
                           itemCount:
                               allChats.length + (_isFetchingMore ? 1 : 0),

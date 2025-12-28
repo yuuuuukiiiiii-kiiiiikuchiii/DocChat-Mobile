@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:rag_faq_document/exceptions/http_exception.dart';
 import 'package:rag_faq_document/models/message/message.dart';
 import 'package:rag_faq_document/repository/dio/authenticated_dio_client.dart';
@@ -16,6 +17,7 @@ class MessageRepository {
       final response = await client.dio.post(
         '/messages/ask/$sessionId',
         data: {"message": message, "document_id": documentId, "title": title},
+        options: Options(contentType: "application/json"),
       );
       if (response.statusCode == 200) {
         return Message.fromJson(response.data);
@@ -32,7 +34,7 @@ class MessageRepository {
 
   Future<List<Message>> listMessage({required int sessionId}) async {
     try {
-      final response = await client.dio.get('/messages/$sessionId');
+      final response = await client.dio.get('/messages/$sessionId',options: Options(contentType: "application/json"),);
       if (response.statusCode == 200) {
         return (response.data as List<dynamic>)
             .map((json) => Message.fromJson(json))

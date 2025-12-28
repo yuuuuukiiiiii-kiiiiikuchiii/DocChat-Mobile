@@ -10,6 +10,7 @@ abstract class Message with _$Message {
     @JsonKey(name: "is_user") required bool isUser,
     @JsonKey(name: "message") required String message,
     @JsonKey(name: "created_at") required DateTime createdAt,
+    
   }) = _Message;
 
   factory Message.typing() => Message(

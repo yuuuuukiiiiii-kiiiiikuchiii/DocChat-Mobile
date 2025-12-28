@@ -6,6 +6,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mime/mime.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
 import 'package:rag_faq_document/pages/upload/upload_screen_provider.dart';
@@ -21,7 +22,8 @@ class UploadScreen extends ConsumerStatefulWidget {
 class _UploadScreenState extends ConsumerState<UploadScreen> {
   String? _filePath;
   String? _fileName;
-  String? _fileType;
+  String? _mimeType;
+  File? _selectedFile;
 
   //編集ダイアログの実装
   void _showEditDialog(BuildContext context) {
@@ -147,14 +149,18 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles();
-
       if (!mounted) return; // ✅ context 使用前に必ずチェック
 
       if (result != null && result.files.first.path != null) {
+        
+        final path = result.files.first.path!;
+        final name = result.files.first.name;
+        final file = File(path);
+
         setState(() {
-          _filePath = result.files.first.path;
-          _fileType = 'pdf';
-          _fileName = result.files.first.name;
+          _filePath = path;
+          _fileName = name;
+          _mimeType = lookupMimeType(path);
         });
 
         //_showSnackBar('ファイルの読み込みに成功しました', isError: false);
@@ -170,33 +176,35 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   }
 
   // カメラでスクリーンショットを撮影
-  Future<void> _takeScreenshot() async {
-    try {
-      final ImagePicker imagePicker = ImagePicker();
-      final XFile? image = await imagePicker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 100,
-        preferredCameraDevice: CameraDevice.rear,
-      );
+  // Future<void> _takeScreenshot() async {
+  //   try {
+  //     final ImagePicker imagePicker = ImagePicker();
+  //     final XFile? image = await imagePicker.pickImage(
+  //       source: ImageSource.camera,
+  //       imageQuality: 100,
+  //       preferredCameraDevice: CameraDevice.rear,
+  //     );
 
-      if (!mounted) return;
+  //     if (!mounted) return;
 
-      if (image != null) {
-        setState(() {
-          _filePath = image.path;
-          _fileType = 'image';
-          _fileName = 'screenshot_${DateTime.now().millisecondsSinceEpoch}.jpg';
-        });
-        //_showSnackBar('スクリーンショットの撮影に成功しました', isError: false);
-        _showEditDialog(context);
-      } else {
-        _showSnackBar('スクリーンショットの撮影に失敗しました', isError: true);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar('エラーが発生しました: $e', isError: true);
-    }
-  }
+  //     if (image != null) {
+  //       final path = image.path;
+  //       final name = 'screenshot_${DateTime.now().millisecondsSinceEpoch}.jpg';
+  //       setState(() {
+  //         _filePath = path;
+  //         _fileName = name;
+  //         _mimeType = lookupMimeType(path);
+  //       });
+  //       //_showSnackBar('スクリーンショットの撮影に成功しました', isError: false);
+  //       _showEditDialog(context);
+  //     } else {
+  //       _showSnackBar('スクリーンショットの撮影に失敗しました', isError: true);
+  //     }
+  //   } catch (e) {
+  //     if (!mounted) return;
+  //     _showSnackBar('エラーが発生しました: $e', isError: true);
+  //   }
+  // }
 
   // 画像を選択（ギャラリーから）
   Future<void> _pickImage() async {
@@ -210,10 +218,13 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
       if (!mounted) return; // ✅ context 使用前に必ずチェック
 
       if (image != null) {
+        final file = File(image.path);
+        final path = image.path;
+        final name = image.name;
         setState(() {
-          _filePath = image.path;
-          _fileType = 'image';
-          _fileName = image.name;
+          _filePath = path;
+          _fileName = name;
+          _mimeType = lookupMimeType(path);
         });
         //_showSnackBar('画像の読み込みに成功しました', isError: false);
         _showEditDialog(context);
@@ -242,13 +253,13 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   void _submit() async {
     //final goRouter = GoRouter.of(context);
 
-    if (_filePath != null && _fileName != null && _fileType != null) {
+    if (_filePath != null && _fileName != null && _mimeType != null) {
       await ref
           .read(uploadProvider.notifier)
           .upload(
             filePath: _filePath!,
             fileName: _fileName!,
-            fileType: _fileType!,
+            mimeType: _mimeType!,
           );
     } else {
       errorDialog(
@@ -275,7 +286,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               extra: {
                 "documentId": documentId,
                 "filePath": _filePath,
-                "fileType": _fileType,
+                "fileType": _mimeType,
               },
             );
           }
@@ -299,17 +310,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(height: 20),
-                  Center(
-                    child: Text(
-                      'ドキュメントをアップロード',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 48),
                   Center(
                     child: Text(
                       'アップロードするファイルを選択してください',
@@ -322,7 +323,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
                     children: [
                       _buildUploadOption(context, Icons.folder, 'デバイス'),
                       _buildUploadOption(context, Icons.image, 'ギャラリー'),
-                      _buildUploadOption(context, Icons.camera, 'スクリーンショット'),
+                      //_buildUploadOption(context, Icons.camera, 'スクリーンショット'),
                     ],
                   ),
                   SizedBox(height: 16),
@@ -406,9 +407,10 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
               ),
             ),
             Positioned(
-              left: 8,
+              left: 4,
 
               child: IconButton(
+                iconSize: 28,
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => GoRouter.of(context).goNamed(RouteNames.home),
               ),
@@ -429,7 +431,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
         } else if (label == 'ギャラリー') {
           _pickImage();
         } else {
-          _takeScreenshot();
+          //_takeScreenshot();
         }
       },
       child: SizedBox(
@@ -455,7 +457,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
   Widget _buildPreviewWidget() {
     if (_filePath == null) return Container();
 
-    if (_fileType == 'image') {
+    if (_mimeType == 'image/jpeg' ||  _mimeType == 'image/png') {
       return SizedBox(
         height: 350,
         width: double.infinity,
@@ -464,7 +466,7 @@ class _UploadScreenState extends ConsumerState<UploadScreen> {
           child: Image.file(File(_filePath!), fit: BoxFit.contain),
         ),
       );
-    } else if (_fileType == 'pdf') {
+    } else if (_mimeType == 'application/pdf') {
       return Center(
         child: Container(
           height: 350,

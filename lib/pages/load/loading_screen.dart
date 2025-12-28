@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,7 @@ import 'package:lottie/lottie.dart';
 import 'package:pdfx/pdfx.dart';
 import 'package:rag_faq_document/config/router/route_names.dart';
 import 'package:rag_faq_document/models/error/custom_error.dart';
+import 'package:rag_faq_document/pages/load/loading_screen_provider.dart';
 import 'package:rag_faq_document/services/upload/upload_service_provider.dart';
 import 'package:rag_faq_document/utils/error_dialog.dart';
 
@@ -34,6 +37,8 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
   late Animation<double> _animation;
   PdfPageImage? _pdfPageImage;
 
+  bool _isCancelling = false;
+
   @override
   void initState() {
     super.initState();
@@ -53,16 +58,50 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
       _loadPdfPageAsImage();
     }
 
-    timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      checkgetDocumentStatus();
-    });
+    // timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+    //   checkGetDocumentStatus();
+    // });
   }
 
   @override
   void dispose() {
-    timer?.cancel();
+    //timer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  // 汎用：プラットフォーム適応のOKダイアログ
+  Future<void> _showOkDialog({
+    required String title,
+    required String message,
+    required VoidCallback onOk,
+  }) async {
+    if (Platform.isIOS) {
+      await showCupertinoDialog(
+        context: context,
+        builder:
+            (_) => CupertinoAlertDialog(
+              title: Text(title),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(message),
+              ),
+              actions: [
+                CupertinoDialogAction(onPressed: onOk, child: const Text('OK')),
+              ],
+            ),
+      );
+    } else {
+      await showDialog(
+        context: context,
+        builder:
+            (_) => AlertDialog(
+              title: Text(title),
+              content: Text(message),
+              actions: [TextButton(onPressed: onOk, child: const Text('OK'))],
+            ),
+      );
+    }
   }
 
   Future<void> _loadPdfPageAsImage() async {
@@ -79,7 +118,7 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
     });
   }
 
-  Future<void> checkgetDocumentStatus() async {
+  Future<void> checkGetDocumentStatus() async {
     final goRouter = GoRouter.of(context);
 
     try {
@@ -90,14 +129,14 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
       final status = data.status;
       final chatId = data.chatId;
       final title = data.filename;
-      final documentId =data.documentId;
+      final documentId = data.documentId;
 
       if (status == "completed") {
         timer?.cancel();
 
         goRouter.goNamed(
           RouteNames.chat,
-          extra: {"title": title, "chatId": chatId,"documentId":documentId},
+          extra: {"title": title, "chatId": chatId, "documentId": documentId},
         );
       } else if (status == "failed") {
         timer?.cancel();
@@ -112,16 +151,25 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
   }
 
   Future<void> _cancelProcessing() async {
+    if (_isCancelling) return; // 連打防止
+    setState(() => _isCancelling = true);
     try {
+      HapticFeedback.lightImpact();
       await ref.read(uploadServiceProvider).cancelUpload(widget.documentId);
 
       timer?.cancel();
       _controller.stop();
+      if (!mounted) return;
 
-      // アップロード画面に戻す or 任意の場所へ遷移
-      if (mounted) {
-        context.goNamed(RouteNames.upload);
-      }
+      // 成功ダイアログ → OKでアップロードへ
+      await _showOkDialog(
+        title: 'キャンセルしました',
+        message: 'ドキュメントの処理を中止しました。再度アップロードする場合は、ファイルを選択してください。',
+        onOk: () {
+          // iOS/Androidともに自然に感じる遷移
+          context.goNamed(RouteNames.upload);
+        },
+      );
     } on CustomError catch (e) {
       _showError(message: "キャンセルに失敗しました", error: e);
     }
@@ -134,83 +182,149 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
 
   @override
   Widget build(BuildContext context) {
+    // プロバイダの状態を監視
+    final asyncState = ref.watch(loadingScreenProvider(widget.documentId));
+
+    ref.listen(loadingScreenProvider(widget.documentId), (previous, next) {
+      next.whenOrNull(
+        data: (data) {
+          // res は DocumentStatusResponse
+          if (data.status == 'completed' && data.chatId != null) {
+            final chatId = data.chatId!;
+            final title = data.filename;
+            final documentId = data.documentId;
+            // 好きなパスに合わせて変更
+            GoRouter.of(context).goNamed(
+              RouteNames.chat,
+              extra: {
+                "title": title,
+                "chatId": chatId,
+                "documentId": documentId,
+              },
+            );
+          } else if (data.status == 'canceled' || data.status == 'failed') {
+            GoRouter.of(context).goNamed(RouteNames.upload);
+          }
+        },
+        error: (e, stackTrace) {
+          final error = e as CustomError;
+          if (error is ServerError) {
+            errorDialog(
+              context,
+              "ドキュメントの処理に失敗しました。",
+              error as CustomError,
+              null,
+            );
+          }
+        },
+      );
+    });
     final screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
-      body: Stack(
-        children: [
-          // 背景アニメーション
-          Lottie.asset(
-            'assets/lottie/load_bg.json',
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-          ),
-          Center(
+      body: asyncState.maybeWhen(
+        error: (error, stackTrace) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: 18),
-                // アニメーション付き画像プレビュー
-                //if (widget.fileType == 'image')
-                ScaleTransition(
-                  scale: _animation,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: screenWidth * 0.9,
-                      color:
-                          widget.fileType == 'image'
-                              ? Colors.white
-                              : const Color(0xFFEFEFEF), // PDF用に薄いグレー
-                      padding: const EdgeInsets.all(8), // 余白も少し入れると良い
-                      child:
-                          widget.fileType == 'image'
-                              ? Image.file(
-                                File(widget.filePath),
-                                fit: BoxFit.contain,
-                              )
-                              : _pdfPageImage != null
-                              ? Image.memory(
-                                _pdfPageImage!.bytes,
-                                fit: BoxFit.contain,
-                              )
-                              : const SizedBox(
-                                width: 200,
-                                height: 200,
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 18),
-                SpinKitFadingCircle(color: Colors.grey, size: 50.0),
-                SizedBox(height: 18),
-                Text(
-                  'ドキュメントを分析中...',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'しばらくお待ちください',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                SizedBox(height: 8),
+                Text("エラー", textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(onPressed: () {}, child: const Text('もう一度試す')),
+                const SizedBox(height: 8),
                 TextButton(
-                  onPressed: () async {
-                    await _cancelProcessing();
+                  onPressed: () {
+                    // アップロード画面に戻るなど
+                    context.go('/upload');
                   },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Color(0xFFFF4D8D),
-                  ),
-                  child: Text('キャンセル'),
+                  child: const Text('アップロード画面に戻る'),
                 ),
               ],
             ),
-          ),
-        ],
+          );
+        },
+        orElse: () {
+          return Stack(
+            children: [
+              // 背景アニメーション
+              Lottie.asset(
+                'assets/lottie/load_bg.json',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(height: 18),
+                    // アニメーション付き画像プレビュー
+                    //if (widget.fileType == 'image')
+                    ScaleTransition(
+                      scale: _animation,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: screenWidth * 0.9,
+                          color:
+                              widget.fileType == 'image'
+                                  ? Colors.white
+                                  : const Color(0xFFEFEFEF), // PDF用に薄いグレー
+                          padding: const EdgeInsets.all(8), // 余白も少し入れると良い
+                          child:
+                              widget.fileType == 'image'
+                                  ? Image.file(
+                                    File(widget.filePath),
+                                    fit: BoxFit.contain,
+                                  )
+                                  : _pdfPageImage != null
+                                  ? Image.memory(
+                                    _pdfPageImage!.bytes,
+                                    fit: BoxFit.contain,
+                                  )
+                                  : const SizedBox(
+                                    width: 200,
+                                    height: 200,
+                                    child: Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 18),
+                    SpinKitFadingCircle(color: Colors.grey, size: 50.0),
+                    SizedBox(height: 18),
+                    Text(
+                      'ドキュメントを分析中...',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'しばらくお待ちください',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                    SizedBox(height: 8),
+                    TextButton(
+                      onPressed:
+                          _isCancelling
+                              ? null
+                              : () async => await _cancelProcessing(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Color(0xFFFF4D8D),
+                      ),
+                      child: Text('キャンセル'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

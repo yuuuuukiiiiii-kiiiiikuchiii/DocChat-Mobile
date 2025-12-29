@@ -54,18 +54,14 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     // PDF読み込み
-    if (widget.fileType == 'pdf') {
+    if (widget.fileType == 'application/pdf') {
       _loadPdfPageAsImage();
     }
 
-    // timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-    //   checkGetDocumentStatus();
-    // });
   }
 
   @override
   void dispose() {
-    //timer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -118,62 +114,62 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
     });
   }
 
-  Future<void> checkGetDocumentStatus() async {
-    final goRouter = GoRouter.of(context);
+  // Future<void> checkGetDocumentStatus() async {
+  //   final goRouter = GoRouter.of(context);
 
-    try {
-      final data = await ref
-          .read(uploadServiceProvider)
-          .getDocumentStatus(widget.documentId);
+  //   try {
+  //     final data = await ref
+  //         .read(uploadServiceProvider)
+  //         .getDocumentStatus(widget.documentId);
 
-      final status = data.status;
-      final chatId = data.chatId;
-      final title = data.filename;
-      final documentId = data.documentId;
+  //     final status = data.status;
+  //     final chatId = data.chatId;
+  //     final title = data.filename;
+  //     final documentId = data.documentId;
 
-      if (status == "completed") {
-        timer?.cancel();
+  //     if (status == "completed") {
+  //       timer?.cancel();
 
-        goRouter.goNamed(
-          RouteNames.chat,
-          extra: {"title": title, "chatId": chatId, "documentId": documentId},
-        );
-      } else if (status == "failed") {
-        timer?.cancel();
+  //       goRouter.goNamed(
+  //         RouteNames.chat,
+  //         extra: {"title": title, "chatId": chatId, "documentId": documentId},
+  //       );
+  //     } else if (status == "failed") {
+  //       timer?.cancel();
 
-        _showError(message: "ドキュメントの処理に失敗しました。", goTo: RouteNames.upload);
-      }
-      // processing の場合は何もしない（継続）
-    } on CustomError catch (e) {
-      timer?.cancel();
-      _showError(message: "ステータス取得に失敗しました。", error: e, goTo: RouteNames.upload);
-    }
-  }
+  //       _showError(message: "ドキュメントの処理に失敗しました。", goTo: RouteNames.upload);
+  //     }
+  //     // processing の場合は何もしない（継続）
+  //   } on CustomError catch (e) {
+  //     timer?.cancel();
+  //     _showError(message: "ステータス取得に失敗しました。", error: e, goTo: RouteNames.upload);
+  //   }
+  // }
 
-  Future<void> _cancelProcessing() async {
-    if (_isCancelling) return; // 連打防止
-    setState(() => _isCancelling = true);
-    try {
-      HapticFeedback.lightImpact();
-      await ref.read(uploadServiceProvider).cancelUpload(widget.documentId);
+  // Future<void> _cancelProcessing() async {
+  //   if (_isCancelling) return; // 連打防止
+  //   setState(() => _isCancelling = true);
+  //   try {
+  //     HapticFeedback.lightImpact();
+  //     await ref.read(uploadServiceProvider).cancelUpload(widget.documentId);
 
-      timer?.cancel();
-      _controller.stop();
-      if (!mounted) return;
+  //     timer?.cancel();
+  //     _controller.stop();
+  //     if (!mounted) return;
 
-      // 成功ダイアログ → OKでアップロードへ
-      await _showOkDialog(
-        title: 'キャンセルしました',
-        message: 'ドキュメントの処理を中止しました。再度アップロードする場合は、ファイルを選択してください。',
-        onOk: () {
-          // iOS/Androidともに自然に感じる遷移
-          context.goNamed(RouteNames.upload);
-        },
-      );
-    } on CustomError catch (e) {
-      _showError(message: "キャンセルに失敗しました", error: e);
-    }
-  }
+  //     // 成功ダイアログ → OKでアップロードへ
+  //     await _showOkDialog(
+  //       title: 'キャンセルしました',
+  //       message: 'ドキュメントの処理を中止しました。再度アップロードする場合は、ファイルを選択してください。',
+  //       onOk: () {
+  //         // iOS/Androidともに自然に感じる遷移
+  //         context.goNamed(RouteNames.upload);
+  //       },
+  //     );
+  //   } on CustomError catch (e) {
+  //     _showError(message: "キャンセルに失敗しました", error: e);
+  //   }
+  // }
 
   void _showError({required String message, CustomError? error, String? goTo}) {
     final customError = error ?? CustomError.unknown(message: message);
@@ -230,7 +226,9 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
               children: [
                 Text("エラー", textAlign: TextAlign.center),
                 const SizedBox(height: 16),
-                ElevatedButton(onPressed: () {}, child: const Text('もう一度試す')),
+                ElevatedButton(onPressed: () {
+                  //リトライ操作
+                }, child: const Text('もう一度試す')),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () {
@@ -309,16 +307,16 @@ class _LoadingScreenState extends ConsumerState<LoadingScreen>
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     SizedBox(height: 8),
-                    TextButton(
-                      onPressed:
-                          _isCancelling
-                              ? null
-                              : () async => await _cancelProcessing(),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Color(0xFFFF4D8D),
-                      ),
-                      child: Text('キャンセル'),
-                    ),
+                    // TextButton(
+                    //   onPressed:
+                    //       _isCancelling
+                    //           ? null
+                    //           : () async => await _cancelProcessing(),
+                    //   style: TextButton.styleFrom(
+                    //     foregroundColor: Color(0xFFFF4D8D),
+                    //   ),
+                    //   child: Text('キャンセル'),
+                    // ),
                   ],
                 ),
               ),

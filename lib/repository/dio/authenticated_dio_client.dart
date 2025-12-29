@@ -144,7 +144,7 @@ class AuthenticatedDioClient {
     );
     try {
       final response = await refreshDio.post(
-        "/tokens/renew_access",
+        "/auth/refresh",
         data: {"refresh_token": refreshToken},
         options: Options(
           contentType: 'application/json',

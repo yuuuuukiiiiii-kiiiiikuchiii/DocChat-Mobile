@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:rag_faq_document/services/upload/upload_service_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -11,7 +13,7 @@ class Upload extends _$Upload {
   }
 
   Future<void> upload({
-    required String filePath,
+    required File filePath,
     required String fileName,
     required String mimeType,
   }) async {

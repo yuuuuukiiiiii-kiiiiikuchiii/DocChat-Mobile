@@ -9,9 +9,10 @@ part 'auth_repository_provider.g.dart';
 
 @riverpod
 AuthRepository authRepository(Ref ref) {
+  final url = "${dotenv.env["BASEURL"]!}/auth";
   final dio = Dio(
     BaseOptions(
-      baseUrl: dotenv.env["BASEURL"]!,
+      baseUrl:url,
       contentType: 'application/json',
       connectTimeout: const Duration(seconds: 5),
       receiveTimeout: const Duration(seconds: 5),

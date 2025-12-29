@@ -11,7 +11,7 @@ class AuthRepository {
   AuthRepository({required this.dio, required this.getDeviceInfoFn});
 
   // 新規登録
-  Future<void> signUp({
+  Future<void> signup({
     required String username,
     required String email,
     required String password,
@@ -19,7 +19,7 @@ class AuthRepository {
     print('📡 authRepository.signUp() START');
     try {
       final response = await dio.post(
-        '/users',
+        '/signup',
         data: {'username': username, 'email': email, 'password': password},
       );
 
@@ -42,7 +42,7 @@ class AuthRepository {
   try {
     final deviceInfo = await getDeviceInfoFn();
     final response = await dio.post(
-      '/users/login',
+      '/signin',
       data: {'email': email, 'password': password},
       options: Options(headers: {'User-Agent': deviceInfo}),
     );
@@ -94,7 +94,7 @@ class AuthRepository {
     try {
       final deviceInfo = await getDeviceInfoFn();
       final response = await dio.post(
-        '/password_reset',
+        '/password-reset',
         data: {'email': email},
         options: Options(headers: {'User-Agent': deviceInfo}),
       );
@@ -114,7 +114,7 @@ class AuthRepository {
     final deviceInfo = await getDeviceInfoFn();
     try {
       final response = await dio.post(
-        "/tokens/renew_access",
+        "/refresh",
         data: {"refresh_token": refreshToken},
         options: Options(headers: {'User-Agent': deviceInfo}),
       );
@@ -139,11 +139,15 @@ class AuthRepository {
 
   Future<void> logout({required String refreshToken}) async {
     try {
-      final response = await dio.post(
-        '/users/logout',
+      final response = await dio.delete(
+        '/logout',
         data: {'refresh_token': refreshToken},
       );
+  
       if (response.statusCode != 200) {
+        
+        print(response.statusCode);
+        print(response.data["error"]);
         throw HttpErrorException(
           message: response.data["error"]?.toString() ?? "不明なエラー",
           statusCode: response.statusCode!,

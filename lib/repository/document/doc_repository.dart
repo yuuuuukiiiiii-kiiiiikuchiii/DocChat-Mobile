@@ -9,7 +9,10 @@ class DocRepository {
 
   Future<List<DocumentsResponse>> listDocument() async {
     try {
-      final response = await client.dio.get('/documents',options: Options(contentType: "application/json"),);
+      final response = await client.dio.get(
+        '/documents',
+        options: Options(contentType: "application/json"),
+      );
       if (response.statusCode == 200) {
         final data = response.data;
 
@@ -38,12 +41,12 @@ class DocRepository {
   }) async {
     try {
       print("start editTitleDocument");
-      final response = await client.dio.put(
-        "/documents/update",
+      final response = await client.dio.patch(
+        "/documents/$documentId",
         options: Options(contentType: "application/json"),
-        data: {'document_id': documentId, 'title': newTitle},
+        data: {'title': newTitle},
       );
-      if(response.statusCode == 200){
+      if (response.statusCode == 200) {
         print(response.data);
       }
       if (response.statusCode != 200) {
@@ -59,7 +62,10 @@ class DocRepository {
 
   Future<void> deleteDocument(int documentId) async {
     try {
-      final response = await client.dio.delete('/documents/$documentId',options: Options(contentType: "application/json"),);
+      final response = await client.dio.delete(
+        '/documents/$documentId',
+        options: Options(contentType: "application/json"),
+      );
       if (response.statusCode != 200) {
         throw HttpErrorException(
           message: (response.data["error"]).toString(),

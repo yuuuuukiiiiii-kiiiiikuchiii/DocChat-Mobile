@@ -21,6 +21,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<void>>(profileScreenProvider, (prev, next) {
       next.whenOrNull(
+        
         error:
             (error, stackTrace) =>
                 errorDialog(context, "通信に失敗しました", error as CustomError, null),
@@ -32,10 +33,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: SafeArea(
         child: profileState.when(
           data: (data) {
-            print(data.createdAt);
+           
             return RefreshIndicator(
               onRefresh: () => _onRefresh(ref),
-              color: Colors.blue,
+              color: Color.fromARGB(255, 42, 204, 166),
               backgroundColor: Colors.white,
               strokeWidth: 2.5,
               displacement: 40,
@@ -208,7 +209,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }) {
     return Column(
       children: [
-        Icon(icon, color: Theme.of(context).primaryColor, size: 28),
+        Icon(icon, color: Color.fromARGB(255, 42, 204, 166), size: 28),
         SizedBox(height: 8),
         Text(
           count.toString(),
@@ -231,56 +232,57 @@ class LogoutButton extends StatelessWidget {
   final bool mounted;
 
   /// プラットフォームに応じてダイアログ表示
-Future<bool?> _confirmLogout(BuildContext context) async {
-  final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
+  Future<bool?> _confirmLogout(BuildContext context) async {
+    final isCupertino = Theme.of(context).platform == TargetPlatform.iOS;
 
-  if (isCupertino) {
-    // iOS風アニメーション＆UI
-    return showCupertinoDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return CupertinoAlertDialog(
-          title: const Text('ログアウト'),
-          content: const Text('本当にログアウトしますか？'),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
-            ),
-            CupertinoDialogAction(
-              isDestructiveAction: true,
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('ログアウト'),
-            ),
-          ],
-        );
-      },
-    );
-  } else {
-    // Material
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('ログアウト'),
-          content: const Text('本当にログアウトしますか？'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('キャンセル'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('ログアウト'),
-            ),
-          ],
-        );
-      },
-    );
+    if (isCupertino) {
+      // iOS風アニメーション＆UI
+      return showCupertinoDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return CupertinoAlertDialog(
+            title: const Text('ログアウト'),
+            content: const Text('本当にログアウトしますか？'),
+            actions: [
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('ログアウト'),
+                
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      // Material
+      return showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('ログアウト'),
+            content: const Text('本当にログアウトしますか？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('キャンセル'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('ログアウト'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +306,8 @@ Future<bool?> _confirmLogout(BuildContext context) async {
           if (removeOrNot == true) {
             await ref.read(profileScreenProvider.notifier).logout();
             if (mounted) {
-              ref.read(authStatusProvider.notifier).state = AuthStatus.unauthenticated;
+              ref.read(authStatusProvider.notifier).state =
+                  AuthStatus.unauthenticated;
               goRouter.goNamed(RouteNames.signin);
             }
           }

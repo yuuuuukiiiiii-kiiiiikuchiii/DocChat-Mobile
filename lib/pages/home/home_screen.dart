@@ -135,6 +135,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   data: (List<Chat> allChats) {
                     if (allChats.isEmpty) {
                       return RefreshIndicator(
+                        color: Color.fromARGB(255, 42, 204, 166),
                         onRefresh: _onRefresh,
                         child: ListView(
                           // 中身がなくてもスクロール可能にする

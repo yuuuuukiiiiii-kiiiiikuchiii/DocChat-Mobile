@@ -11,7 +11,7 @@ class LoadRepository {
 
   Future<DocumentStatusResponse> uploadComplete(int documentId) async {
     try {
-      final response = await client.dio.post('/upload/$documentId/complete');
+      final response = await client.dio.post('/documents/$documentId/uploads/complete');
       if (response.statusCode == 200) {
         return DocumentStatusResponse.fromJson(response.data);
       } else {
@@ -27,7 +27,7 @@ class LoadRepository {
 
   Future<DocumentStatusResponse> getDocumentStatus(int documentId) async {
     try {
-      final response = await client.dio.get('/upload/$documentId');
+      final response = await client.dio.get('/documents/$documentId/processing');
       if (response.statusCode == 200) {
         return DocumentStatusResponse.fromJson(response.data);
       } else {
@@ -44,7 +44,7 @@ class LoadRepository {
   Future<void> cancelUpload(documentId) async {
     try {
       
-      final response = await client.dio.delete('/upload/cancel/$documentId');
+      final response = await client.dio.post('/documents/$documentId/processing/cancel');
       if (response.statusCode == 204) {
         return;
       } else {

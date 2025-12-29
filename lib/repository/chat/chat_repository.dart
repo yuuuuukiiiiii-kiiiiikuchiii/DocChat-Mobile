@@ -39,29 +39,9 @@ class ChatRepository {
 
   Future<Chat> getChat({required int id}) async {
     try {
-      final response = await client.dio.get('/chats/$id',options: Options(contentType: "application/json"),);
-      if (response.statusCode == 200) {
-        return Chat.fromJson(response.data);
-      } else {
-        throw HttpErrorException(
-          message: (response.data["error"]).toString(),
-          statusCode: response.statusCode!,
-        );
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<Chat> createChat({
-    required int documentId,
-    required String title,
-  }) async {
-    try {
-      final response = await client.dio.post(
-        '/chats/session',
+      final response = await client.dio.get(
+        '/chats/$id',
         options: Options(contentType: "application/json"),
-        data: {'document_id': documentId, 'title': title},
       );
       if (response.statusCode == 200) {
         return Chat.fromJson(response.data);

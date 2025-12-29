@@ -16,7 +16,7 @@ class ProfileRepository {
       );
 
       if (response.statusCode == 200) {
-        print(response.data["created_at"]);
+        // print(response.data["created_at"]);
         return Profile.fromJson(response.data);
       } else {
         throw HttpErrorException(

@@ -15,7 +15,7 @@ class MessageRepository {
   }) async {
     try {
       final response = await client.dio.post(
-        '/messages/ask/$sessionId',
+        '/chats/$sessionId/messages',
         data: {"message": message, "document_id": documentId, "title": title},
         options: Options(contentType: "application/json"),
       );
@@ -34,7 +34,10 @@ class MessageRepository {
 
   Future<List<Message>> listMessage({required int sessionId}) async {
     try {
-      final response = await client.dio.get('/messages/$sessionId',options: Options(contentType: "application/json"),);
+      final response = await client.dio.get(
+        '/chats/$sessionId/messages',
+        options: Options(contentType: "application/json"),
+      );
       if (response.statusCode == 200) {
         return (response.data as List<dynamic>)
             .map((json) => Message.fromJson(json))

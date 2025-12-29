@@ -20,7 +20,7 @@ class AuthService {
     required String password,
   }) async {
     try {
-      await repo.signUp(username: username, email: email, password: password);
+      await repo.signup(username: username, email: email, password: password);
     } on HttpErrorException catch (e) {
       final userMessage = mapHttpErrorToUserMessage(e.message, e.statusCode);
       throw CustomError.server(
